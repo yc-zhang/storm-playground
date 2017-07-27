@@ -24,6 +24,7 @@ public class SplitSentenceBolt extends BaseRichBolt {
         String sentence = input.getStringByField("sentence");
         String[] words = sentence.split(" ");
         Arrays.stream(words).forEach(this::emit);
+        this.collector.ack(input);
     }
 
     private void emit(String word) {

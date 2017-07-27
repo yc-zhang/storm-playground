@@ -11,6 +11,8 @@ import utils.Utils;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
 
 public class SentenceSpout extends BaseRichSpout {
 
@@ -26,14 +28,19 @@ public class SentenceSpout extends BaseRichSpout {
 
     private int index = 0;
 
+    private Map<UUID, Values> pending;
+
     @Override
     public void open(Map conf, TopologyContext context, SpoutOutputCollector collector) {
         this.collector = collector;
+        this.pending = new ConcurrentHashMap<>();
     }
 
     @Override
     public void nextTuple() {
-        this.collector.emit(new Values(sentences.get(index)));
+        Values values = new Values(sentences.get(index));
+        this.pending.put(UUID.randomUUID(), values);
+        this.collector.emit(values);
         this.index++;
         if (index >= sentences.size()) {
             this.index = 0;
@@ -44,5 +51,13 @@ public class SentenceSpout extends BaseRichSpout {
     @Override
     public void declareOutputFields(OutputFieldsDeclarer declarer) {
         declarer.declare(new Fields("sentence"));
+    }
+
+    public void ack(Object messageId) {
+        this.pending.remove(messageId);
+    }
+
+    public void fail(Object messageId) {
+        this.collector.emit(this.pending.get(messageId), messageId);
     }
 }
